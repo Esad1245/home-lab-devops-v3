@@ -1,0 +1,37 @@
+```yaml
+name: Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Build and push Docker images
+      run: |
+        docker build -t devopsacr.azurecr.io/devops-api:latest ./api
+        docker build -t devopsacr.azurecr.io/devops-app:latest ./app
+        echo "${{ secrets.AZURE_ACR_PASSWORD }}" | docker login devopsacr.azurecr.io -u ${{ secrets.AZURE_ACR_USERNAME }} --password-stdin
+        docker push devopsacr.azurecr.io/devops-api:latest
+        docker push devopsacr.azurecr.io/devops-app:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Apply Kubernetes manifests
+      run: |
+        kubectl apply -f k8s/demo-api.yaml
+        kubectl apply -f k8s/demo-app.yaml
+```

@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: devops-read-access
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devops-read-access-binding
+  namespace: default
+subjects:
+  - kind: User
+    name: devops-user
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: devops-read-access
+  apiGroup: rbac.authorization.k8s.io
