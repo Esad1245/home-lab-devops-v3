@@ -27,6 +27,6 @@ spec:
     spec:
       containers:
       - name: devops-app
-        image: devopsacr.azurecr.io/devops-app:latest
+        image: devopsacrxw8mdy.azurecr.io/devops-app:latest
         ports:
         - containerPort: 80
