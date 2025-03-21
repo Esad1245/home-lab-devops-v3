@@ -29,24 +29,61 @@ resource "azurerm_kubernetes_cluster" "aks" {
 }
 
 resource "azurerm_key_vault" "devops_vault" {
-  name                = "devops-keyvault"
+  name                = "devops-keyvault-${random_string.suffix.result}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   tenant_id           = var.azure_tenant_id
   sku_name            = "standard"
 }
 
-resource "azurerm_key_vault_secret" "db_password" {
-  name         = "db-password"
-  value        = "SuperSecurePassword123"
+resource "azurerm_key_vault_access_policy" "terraform_policy" {
+  key_vault_id = azurerm_key_vault.devops_vault.id
+  tenant_id    = var.azure_tenant_id
+  object_id    = "84c217aa-649b-40d6-89ee-51e12290a449" # TerraformDevOps Service Principal
+
+  secret_permissions = [
+    "Get", "List", "Set", "Delete"
+  ]
+}
+
+resource "azurerm_key_vault_access_policy" "aks_policy" {
+  key_vault_id = azurerm_key_vault.devops_vault.id
+  tenant_id    = var.azure_tenant_id
+  object_id    = azurerm_kubernetes_cluster.aks.identity[0].principal_id
+
+  secret_permissions = [
+    "Get", "List", "Set", "Delete"
+  ]
+}
+
+resource "azurerm_key_vault_access_policy" "devops_automation_policy" {
+  key_vault_id = azurerm_key_vault.devops_vault.id
+  tenant_id    = var.azure_tenant_id
+  object_id    = "f18ecbc2-ac3c-4ff5-a416-388140546f7e" # DevOps Automation Service Principal
+
+  secret_permissions = [
+    "Get", "List", "Set", "Delete"
+  ]
+}
+
+resource "azurerm_key_vault_secret" "acr_username" {
+  name         = "acr-username"
+  value        = azurerm_container_registry.acr.admin_username
+  key_vault_id = azurerm_key_vault.devops_vault.id
+}
+
+resource "azurerm_key_vault_secret" "acr_password" {
+  name         = "acr-password"
+  value        = azurerm_container_registry.acr.admin_password
   key_vault_id = azurerm_key_vault.devops_vault.id
 }
 
 resource "azurerm_container_registry" "acr" {
-  name                = "devopsacr"
+  name                = "devopsacr${random_string.suffix.result}"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   sku                 = "Basic"
+  admin_enabled       = true # Korrekt aktiveret ACR admin for credentials adgang
 }
 
 resource "azurerm_log_analytics_workspace" "log_analytics" {
@@ -57,12 +94,20 @@ resource "azurerm_log_analytics_workspace" "log_analytics" {
   retention_in_days   = 30
 }
 
-# Azure Container Instance for API
+resource "random_string" "suffix" {
+  length  = 6
+  special = false
+  upper   = false
+  numeric = true
+}
+
 resource "azurerm_container_group" "devops_api" {
   name                = "devops-api-instance"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   os_type             = "Linux"
+
+  depends_on = [azurerm_container_registry.acr, azurerm_key_vault_secret.acr_username, azurerm_key_vault_secret.acr_password] # Sikrer at ACR er færdig først
 
   container {
     name   = "devops-api"
@@ -82,10 +127,11 @@ resource "azurerm_container_group" "devops_api" {
 
   image_registry_credential {
     server   = azurerm_container_registry.acr.login_server
-    username = azurerm_container_registry.acr.admin_username
-    password = azurerm_container_registry.acr.admin_password
+    username = azurerm_key_vault_secret.acr_username.value
+    password = azurerm_key_vault_secret.acr_password.value
   }
 }
+
 resource "azurerm_monitor_diagnostic_setting" "aks_monitoring" {
   name                       = "aks-monitoring"
   target_resource_id         = azurerm_kubernetes_cluster.aks.id
@@ -95,11 +141,4 @@ resource "azurerm_monitor_diagnostic_setting" "aks_monitoring" {
     category = "AllMetrics"
     enabled  = true
   }
-}
-
-# CI/CD Integration med GitHub Actions
-resource "github_repository" "home_lab_devops" {
-  name        = "home-lab-devops"
-  description = "DevOps Home Lab setup med Azure, Kubernetes og CI/CD"
-  visibility  = "public"
 }
