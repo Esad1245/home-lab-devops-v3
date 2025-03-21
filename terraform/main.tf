@@ -28,6 +28,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 }
 
+resource "azurerm_role_assignment" "aks_acr_pull" {
+  principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
+  role_definition_name = "AcrPull"
+  scope                = azurerm_container_registry.acr.id
+}
+
 resource "azurerm_key_vault" "devops_vault" {
   name                = "devops-keyvault-${random_string.suffix.result}"
   location            = azurerm_resource_group.rg.location
@@ -39,11 +45,9 @@ resource "azurerm_key_vault" "devops_vault" {
 resource "azurerm_key_vault_access_policy" "terraform_policy" {
   key_vault_id = azurerm_key_vault.devops_vault.id
   tenant_id    = var.azure_tenant_id
-  object_id    = "84c217aa-649b-40d6-89ee-51e12290a449" # TerraformDevOps Service Principal
+  object_id    = "84c217aa-649b-40d6-89ee-51e12290a449"
 
-  secret_permissions = [
-    "Get", "List", "Set", "Delete"
-  ]
+  secret_permissions = ["Get", "List", "Set", "Delete"]
 }
 
 resource "azurerm_key_vault_access_policy" "aks_policy" {
@@ -51,31 +55,15 @@ resource "azurerm_key_vault_access_policy" "aks_policy" {
   tenant_id    = var.azure_tenant_id
   object_id    = azurerm_kubernetes_cluster.aks.identity[0].principal_id
 
-  secret_permissions = [
-    "Get", "List", "Set", "Delete"
-  ]
+  secret_permissions = ["Get", "List", "Set", "Delete"]
 }
 
 resource "azurerm_key_vault_access_policy" "devops_automation_policy" {
   key_vault_id = azurerm_key_vault.devops_vault.id
   tenant_id    = var.azure_tenant_id
-  object_id    = "f18ecbc2-ac3c-4ff5-a416-388140546f7e" # DevOps Automation Service Principal
+  object_id    = "f18ecbc2-ac3c-4ff5-a416-388140546f7e"
 
-  secret_permissions = [
-    "Get", "List", "Set", "Delete"
-  ]
-}
-
-resource "azurerm_key_vault_secret" "acr_username" {
-  name         = "acr-username"
-  value        = azurerm_container_registry.acr.admin_username
-  key_vault_id = azurerm_key_vault.devops_vault.id
-}
-
-resource "azurerm_key_vault_secret" "acr_password" {
-  name         = "acr-password"
-  value        = azurerm_container_registry.acr.admin_password
-  key_vault_id = azurerm_key_vault.devops_vault.id
+  secret_permissions = ["Get", "List", "Set", "Delete"]
 }
 
 resource "azurerm_container_registry" "acr" {
@@ -83,7 +71,21 @@ resource "azurerm_container_registry" "acr" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   sku                 = "Basic"
-  admin_enabled       = true # Korrekt aktiveret ACR admin for credentials adgang
+  admin_enabled       = true
+}
+
+resource "azurerm_key_vault_secret" "acr_username" {
+  name         = "acr-username"
+  value        = azurerm_container_registry.acr.admin_username
+  key_vault_id = azurerm_key_vault.devops_vault.id
+  depends_on   = [azurerm_container_registry.acr]
+}
+
+resource "azurerm_key_vault_secret" "acr_password" {
+  name         = "acr-password"
+  value        = azurerm_container_registry.acr.admin_password
+  key_vault_id = azurerm_key_vault.devops_vault.id
+  depends_on   = [azurerm_container_registry.acr]
 }
 
 resource "azurerm_log_analytics_workspace" "log_analytics" {
@@ -107,7 +109,11 @@ resource "azurerm_container_group" "devops_api" {
   resource_group_name = azurerm_resource_group.rg.name
   os_type             = "Linux"
 
-  depends_on = [azurerm_container_registry.acr, azurerm_key_vault_secret.acr_username, azurerm_key_vault_secret.acr_password] # Sikrer at ACR er færdig først
+  depends_on = [
+    azurerm_container_registry.acr,
+    azurerm_key_vault_secret.acr_username,
+    azurerm_key_vault_secret.acr_password
+  ]
 
   container {
     name   = "devops-api"
