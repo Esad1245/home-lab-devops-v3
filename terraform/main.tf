@@ -118,6 +118,6 @@ resource "azurerm_monitor_diagnostic_setting" "aks_monitoring" {
 }
 
 resource "kubernetes_manifest" "ingress_nginx" {
-  manifest   = yamldecode(file("${path.module}/k8s/nginx-ingress-controller.yaml"))
+  manifest   = yamldecode(file("${path.module}/home-lab-devops-v3/k8s/nginx-ingress-controller.yaml"))
   depends_on = [azurerm_kubernetes_cluster.aks]
 }
