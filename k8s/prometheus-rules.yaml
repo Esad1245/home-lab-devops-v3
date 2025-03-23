@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: example-alert-rules
+  namespace: default
+spec:
+  groups:
+    - name: example-rules
+      rules:
+        - alert: HighCPUUsage
+          expr: rate(container_cpu_usage_seconds_total[1m]) > 0.2
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Høj CPU for container"
+            description: "Container CPU > 20% i over 1 minut"

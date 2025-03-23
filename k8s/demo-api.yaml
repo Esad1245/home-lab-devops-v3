@@ -24,6 +24,9 @@ spec:
     metadata:
       labels:
         app: devops-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
     spec:
       containers:
       - name: devops-api

@@ -2,8 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
-  labels:
-    app: grafana
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -20,17 +19,29 @@ spec:
           ports:
             - containerPort: 3000
           env:
-          - name: GF_SERVER_ROOT_URL
-            value: http://localhost:3000/grafana
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: grafana
-spec:
-  selector:
-    app: grafana
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 3000
+            - name: GF_SERVER_ROOT_URL
+              value: http://localhost:3000/grafana
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+            - name: grafana-datasource
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+            - name: grafana-dashboard
+              mountPath: /etc/grafana/provisioning/dashboards
+              readOnly: true
+            - name: grafana-dashboard-jsons
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+      volumes:
+        - name: grafana-storage
+          emptyDir: {}
+        - name: grafana-datasource
+          configMap:
+            name: grafana-datasource
+        - name: grafana-dashboard
+          configMap:
+            name: grafana-dashboard
+        - name: grafana-dashboard-jsons
+          configMap:
+            name: grafana-dashboard

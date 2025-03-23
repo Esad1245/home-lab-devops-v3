@@ -1,0 +1,16 @@
+# fil: prometheus-instance.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: k8s
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+spec:
+  replicas: 1
+  serviceAccountName: prometheus-k8s
+  serviceMonitorSelector: {}
+  serviceMonitorNamespaceSelector: {}
+  resources:
+    requests:
+      memory: 400Mi

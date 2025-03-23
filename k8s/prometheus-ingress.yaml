@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: k8s
+  namespace: monitoring
+  labels:
+    prometheus: k8s
+spec:
+  replicas: 2
+  serviceAccountName: prometheus-k8s
+  serviceMonitorSelector:
+    matchLabels:
+      team: devops
+  serviceMonitorNamespaceSelector:
+    matchNames:
+      - monitoring
+  resources:
+    requests:
+      memory: 400Mi
