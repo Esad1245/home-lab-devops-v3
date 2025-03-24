@@ -113,7 +113,7 @@ Alertmanager Overview
 
 🌎 Live Demo
 
-Grafana: http://your-ip/grafanaPrometheus: http://your-ip/prometheusApp: http://your-ip/appAPI: http://your-ip/api
+http://50.85.54.34/grafana http://50.85.54.34/api http://50.85.54.34/app
 
 Ingress is set up with NGINX and path-based routing
 
